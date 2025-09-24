@@ -63,7 +63,7 @@ spec:
       serviceAccountName: kube-ip-tracker
       containers:
       - name: kube-ip-tracker
-        image: ghcr.io/gke-labs/kube-ip-tracker:latest
+        image: ghcr.io/gke-labs/kube-ip-tracker:stable
         args:
         - /bin/kube-ip-tracker
         - --listen-address=http://0.0.0.0:10999
