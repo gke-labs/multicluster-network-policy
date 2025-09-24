@@ -61,7 +61,52 @@ In a full mesh model, **each cluster runs its own independent `kube-ip-tracker` 
 
 Each of these `kube-ip-tracker` deployments is configured to watch the API servers of **all** clusters in the mesh (including its own). This way, every cluster builds its own complete, aggregated cache of the entire multi-cluster environment.
 
-![{"state":"rendered","type":"reg","sketch":true,"diagramType":"flowchart","textFormat":"compressed","text":"H4sIAAAAAAAAE5WUTWuDQBCG7/0VQ3ppD3uItFByKOwkl5BSpM1Ngph1NItWZV0b8u+LH6xVE6Nelp1539mZecBQedkJ9psHAIC8OIbVfR0XuSYFvAqXny8VCS3TBD6+THD3abvciYojsYT0OVURy9JYCkk580JK9AEYe4etvXe5+03qVwpymnMFlU9mTCtPRKQOpmxH31ZYOnbqz7dZN2zGZ6Ze9DSwoSxOLz+UaHgyK3leGKd5dTkMWSZEid8+xu1t2SEplzu7t7y8Qx0AXo9i5AMaeJ8GTqOBM2ngYK04hcYV210aM3HgFRw4xIFdHEMa2KeBPRo1Z2AMzp4WJ8qrmf7hnKTCVmVNqjWiwrYxnNTYmKptDCc1NqZqGsv1Jab6HwGBjOPVo/DpJQh6SbyVbHZZZ/3XwPO9ftYay+KoF7veP3D+ebAIBQAA","desc":null}][image1]
+```mermaid
+graph TD
+    subgraph Cluster A
+        direction LR
+        KNP_A[kube-network-policies-agent] --> IPT_A_Service[Service: kube-ip-tracker]
+        IPT_A_Service --> IPT_A1[Pod: kube-ip-tracker]
+        IPT_A_Service --> IPT_A2[Pod: kube-ip-tracker]
+
+        subgraph "kube-ip-tracker Deployment (Cluster A)"
+            IPT_A1
+            IPT_A2
+        end
+
+        APIServer_A[K8s API Server A]
+    end
+
+    subgraph Cluster B
+        direction LR
+        KNP_B[kube-network-policies-agent] --> IPT_B_Service[Service: kube-ip-tracker]
+        IPT_B_Service --> IPT_B1[Pod: kube-ip-tracker]
+        IPT_B_Service --> IPT_B2[Pod: kube-ip-tracker]
+
+         subgraph "kube-ip-tracker Deployment (Cluster B)"
+            IPT_B1
+            IPT_B2
+        end
+        APIServer_B[K8s API Server B]
+    end
+
+    IPT_A1 -- watches --> APIServer_A
+    IPT_A1 -- watches --> APIServer_B
+    IPT_A2 -- watches --> APIServer_A
+    IPT_A2 -- watches --> APIServer_B
+
+    IPT_B1 -- watches --> APIServer_A
+    IPT_B1 -- watches --> APIServer_B
+    IPT_B2 -- watches --> APIServer_A
+    IPT_B2 -- watches --> APIServer_B
+
+    style KNP_A fill:#cde4ff
+    style KNP_B fill:#cde4ff
+    style IPT_A1 fill:#d5fada
+    style IPT_A2 fill:#d5fada
+    style IPT_B1 fill:#d5fada
+    style IPT_B2 fill:#d5fada
+```
 
 #### Advantages of the Full Mesh Model
 
@@ -72,7 +117,39 @@ Each of these `kube-ip-tracker` deployments is configured to watch the API serve
 
 The diagram below illustrates how a policy in one cluster can use the globally-aware cache to enforce rules on traffic from another cluster.
 
-![{"state":"rendered","type":"reg","sketch":true,"diagramType":"flowchart","textFormat":"compressed","text":"H4sIAAAAAAAAE42SwWrDMAyG730K0Z3DLj3tMIg7GGEQDOstjODYcmriWcFxOwp5+BGnTbKt6+aTLf3+fllW7UW7h93TCgCgO1R1PG/toQvoIY3hYSnjUQZDDnZsCuYYONkyLXIMH+QbTtbIExg3A94m8UvOy7RIa3QByEFOCgflWYFOra7XwG7XwEmVrOCklrbsqy37act+s10/W6qEHbiQOU2wFXKP64mX8V2ZFs2hwsS0SfBCNugXD7lo2DXNd9eUZ0NPeAav6I+xX5Akj71HoToQ1vaj3yy+lmYzjC1h7A8YuwGLyphvPR2Nwg7qsTFtbLWmfvzRSc3+oT7DL3MTb5gOhhKgOi2JcRfz6DR5iR2043SRg+CF1kZCoHvt6b0fh+D8keFkcXbQxtqHO61xIzerT+fEMGntAgAA","desc":null}][image2]
+```mermaid
+graph TD
+    subgraph Cluster A
+        direction TB
+        NetPol_A[NetworkPolicy in Cluster A]
+        KNP_A[Agent on Node in A]
+    end
+
+    subgraph Cluster B
+        direction TB
+        Pod_B[Pod in Cluster B]
+        KNP_B[Agent on Node in B]
+    end
+
+    subgraph "Global Pod Info Cache"
+        IPT_A[kube-ip-tracker in A]
+        IPT_B[kube-ip-tracker in B]
+    end
+
+    API_A[API Server A] -->|reads all| IPT_A
+    API_A -->|reads all| IPT_B
+
+    API_B[API Server B] -->|reads all| IPT_A
+    API_B -->|reads all| IPT_B
+
+    IPT_A -->|provides global pod info| KNP_A
+    IPT_B -->|provides global pod info| KNP_B
+
+    NetPol_A -->|is read by| KNP_A
+    KNP_A -->|enforces policy on traffic to/from| Pod_B
+
+    style NetPol_A fill:#ffe4c4
+```
 
 ### Alternative: Hub and Spoke Model
 
@@ -85,7 +162,37 @@ For environments with a very large number of clusters, a full mesh can become a 
 
 The `kube-network-policies` agents on the nodes of a spoke cluster only need to connect to their local `kube-ip-tracker`.
 
-![{"state":"rendered","type":"reg","sketch":true,"diagramType":"flowchart","textFormat":"compressed","text":"H4sIAAAAAAAAE42SwWrDMBBE7/mKhZ51Sy49FLQttKYlGJKbMUa2Vk6wahnJbsnfl8htLAubVCeJGd7MLqqt6E5wfNkAALihrP37bSjhWQ+uJ+uF63nVphS6SNJjNl6hGUpi5471VlQN2dxbqZWbOezQmYb+cMBvwPd9WvCM19T2YFrYG0nAc2DsCT5MNUYVPPP3OAt4fuPwNLly0gQOZL8m7V4TnDXBqAnGTXClCc6bYNgEoybTDoEx+BZ9dSLnc/wQ//DgCAoWtE6KTO7SVg6UNZ/eN+XESFwOXjDdQbr+oikcSJ21fnxQSu3kNnD4n/ArVpK2SkUironhiKNF7pSQYtGCM8sPzpTw3PoCAAA=","desc":null}][image3]
+```mermaid
+graph TD
+    subgraph Hub Cluster
+        Global_IPT[Global kube-ip-tracker]
+    end
+
+    subgraph Spoke Cluster A
+        KNP_A[Agent on Node A] --> Local_IPT_A[Local kube-ip-tracker A]
+        API_A[API Server A]
+    end
+
+    subgraph Spoke Cluster B
+        KNP_B[Agent on Node B] --> Local_IPT_B[Local kube-ip-tracker B]
+        API_B[API Server B]
+    end
+
+    Global_IPT -- watches --> API_A
+    Global_IPT -- watches --> API_B
+
+    Local_IPT_A -- watches --> API_A
+    Local_IPT_A -- syncs from --> Global_IPT
+
+    Local_IPT_B -- watches --> API_B
+    Local_IPT_B -- syncs from --> Global_IPT
+
+    style Global_IPT fill:#fff5d4
+    style KNP_A fill:#cde4ff
+    style KNP_B fill:#cde4ff
+    style Local_IPT_A fill:#d5fada
+    style Local_IPT_B fill:#d5fada
+```
 
 #### Advantages of the Hub and Spoke Model
 
