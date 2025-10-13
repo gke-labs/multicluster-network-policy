@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/eks v1.74.1
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.5
 	github.com/aws/smithy-go v1.23.0
-	golang.org/x/oauth2 v0.31.0
+	golang.org/x/oauth2 v0.32.0
 	google.golang.org/api v0.249.0
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
