@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # setup cross-compile env
-FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.25 AS builder
 ARG TARGETARCH
 ARG GOARCH=${TARGETARCH} CGO_ENABLED=0
 
@@ -24,7 +24,7 @@ RUN go mod download
 
 # build
 COPY . .
-RUN go build -o /go/bin/kube-ip-tracker ./cmd/kube-ip-tracker
+RUN go build -buildvcs=false -o /go/bin/kube-ip-tracker ./cmd/kube-ip-tracker
 
 # copy binary onto base image
 FROM gcr.io/distroless/base-debian12
